@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>Gestion Entreprise PWA</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <!-- Lien vers le manifest qui permet l'installation en mode PWA -->
+  <link rel="manifest" href="manifest.json">
+  
+  <!-- Style CSS intégré -->
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f4f4f4;
+      margin: 0;
+      padding: 20px;
+    }
+    header {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    header h1 {
+      margin: 0;
+      font-size: 2em;
+    }
+    #form-section, #table-section {
+      background: #fff;
+      padding: 15px;
+      margin-bottom: 20px;
+      box-shadow: 0 0 5px rgba(0,0,0,0.1);
+    }
+    form {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    form input[type="text"] {
+      flex: 1;
+      padding: 8px;
+      font-size: 1em;
+    }
+    form button {
+      padding: 8px 15px;
+      font-size: 1em;
+      cursor: pointer;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    th, td {
+      border: 1px solid #ddd;
+      padding: 8px;
+      text-align: center;
+    }
+    th {
+      background: #333;
+      color: #fff;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Gestion des Employés et Chantiers</h1>
+    <p>Suivi complet pour gérer employés, salaires, primes, matériaux et chantiers.</p>
+  </header>
+
+  <!-- Section formulaire pour ajouter un employé ou incrémenter les jours travaillés -->
+  <section id="form-section">
+    <form id="formAjout">
+      <label for="nom">Nom de l'employé :</label>
+      <input type="text" id="nom" placeholder="Entrez le nom" required>
+      <button type="submit">Ajouter jour</button>
+    </form>
+  </section>
+
+  <!-- Section tableau qui affiche la liste des employés -->
+  <section id="table-section">
+    <table id="tableEmployes">
+      <thead>
+        <tr>
+          <th>Nom</th>
+          <th>Jours travaillés</th>
+          <th>Total à payer</th>
+          <th>Paiement effectué</th>
+        </tr>
+      </thead>
+      <tbody>
+        <!-- Les données seront insérées ici par le script JavaScript -->
+      </tbody>
+    </table>
+  </section>
+
+  <!-- Script JavaScript complet -->
+  <script>
+    // Tarif journalier (modifiable selon vos besoins)
+    const tarifParJour = 100;
+    
+    // Tableau qui contiendra la liste des employés
+    let employes = [];
+
+    // Fonction pour charger les données depuis le LocalStorage
+    function chargerDonnees() {
+      const donnees = localStorage.getItem('employes');
+      if (donnees) {
+        employes = JSON.parse(donnees);
+      }
+    }
+
+    // Fonction pour sauvegarder les données dans le LocalStorage
+    function sauvegarderDonnees() {
+      localStorage.setItem('employes', JSON.stringify(employes));
+    }
+
+    // Fonction pour afficher le tableau des employés dans le HTML
+    function afficherTableau() {
+      const tbody = document.querySelector('#tableEmployes tbody');
+      tbody.innerHTML = ''; // Réinitialise le tableau
+      employes.forEach((employe, index) => {
+        const tr = document.createElement('tr');
+
+        // Colonne Nom
+        const tdNom = document.createElement('td');
+        tdNom.textContent = employe.nom;
+        tr.appendChild(tdNom);
+
+        // Colonne Jours travaillés
+        const tdJours = document.createElement('td');
+        tdJours.textContent = employe.jours;
+        tr.appendChild(tdJours);
+
+        // Colonne Total à payer
+        const tdTotal = document.createElement('td');
+        tdTotal.textContent = employe.jours * tarifParJour + " €";
+        tr.appendChild(tdTotal);
+
+        // Colonne Paiement effectué (case à cocher)
+        const tdPaiement = document.createElement('td');
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.checked = employe.paye;
+        checkbox.addEventListener('change', () => {
+          employes[index].paye = checkbox.checked;
+          sauvegarderDonnees();
+        });
+        tdPaiement.appendChild(checkbox);
+        tr.appendChild(tdPaiement);
+
+        tbody.appendChild(tr);
+      });
+    }
+
+    // Initialisation de l'application
+    function init() {
+      chargerDonnees();
+      afficherTableau();
+
+      // Gestion du formulaire d'ajout
+      const formAjout = document.getElementById('formAjout');
+      formAjout.addEventListener('submit', function(event) {
+        event.preventDefault();
+        const nomInput = document.getElementById('nom');
+        const nomEmploye = nomInput.value.trim();
+        if (!nomEmploye) return;
+
+        // Vérifier si l'employé existe déjà
+        const index = employes.findIndex(emp => emp.nom.toLowerCase() === nomEmploye.toLowerCase());
+        if (index !== -1) {
+          // Incrémenter le nombre de jours pour un employé existant
+          employes[index].jours += 1;
+          // Optionnel : réinitialiser la case paiement si besoin
+          employes[index].paye = false;
+        } else {
+          // Créer une nouvelle entrée pour l'employé
+          employes.push({
+            nom: nomEmploye,
+            jours: 1,
+            paye: false
+          });
+        }
+        sauvegarderDonnees();
+        afficherTableau();
+        nomInput.value = '';
+      });
+    }
+
+    // Exécuter l'initialisation une fois le DOM chargé
+    document.addEventListener('DOMContentLoaded', init);
+
+    // Enregistrement du Service Worker pour transformer en PWA
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('./sw.js')
+        .then(registration => {
+          console.log('Service Worker enregistré avec succès:', registration);
+        })
+        .catch(error => {
+          console.error('Erreur lors de l\'enregistrement du Service Worker:', error);
+        });
+    }
+  </script>
+</body>
+</html>
